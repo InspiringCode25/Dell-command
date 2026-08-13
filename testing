@@ -1,0 +1,7 @@
+@"
+Args count: $($args.Count)
+
+Arg0: [$($args[0])]
+Arg1: [$($args[1])]
+Arg2: [$($args[2])]
+"@ | Set-Content "C:\Temp\PasswordTest.txt"
