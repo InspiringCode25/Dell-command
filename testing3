@@ -1,0 +1,20 @@
+param(
+    [string]$PasswordBase64
+)
+
+try {
+    $Decoded = [System.Text.Encoding]::UTF8.GetString(
+        [System.Convert]::FromBase64String($PasswordBase64)
+    )
+
+    @"
+Encoded:
+[$PasswordBase64]
+
+Decoded:
+[$Decoded]
+"@ | Set-Content "C:\Temp\PasswordTest.txt"
+}
+catch {
+    $_.Exception.Message | Set-Content "C:\Temp\PasswordTest.txt"
+}
