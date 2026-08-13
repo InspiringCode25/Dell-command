@@ -1,0 +1,28 @@
+param(
+    [string]$PasswordBase64
+)
+
+try {
+    $DecodedPassword = [System.Text.Encoding]::UTF8.GetString(
+        [System.Convert]::FromBase64String($PasswordBase64.Trim())
+    )
+
+    if (!(Test-Path "C:\Temp")) {
+        New-Item -ItemType Directory -Path "C:\Temp" -Force | Out-Null
+    }
+
+    @"
+Encoded:
+[$PasswordBase64]
+
+Decoded:
+[$DecodedPassword]
+
+Timestamp:
+$(Get-Date)
+"@ | Set-Content "C:\Temp\PasswordTest.txt"
+}
+catch {
+    $_.Exception.Message | Set-Content "C:\Temp\PasswordTest.txt"
+    exit 1
+}
