@@ -2,8 +2,20 @@ param(
     [string]$PasswordBase64
 )
 
-$Password = [System.Text.Encoding]::UTF8.GetString(
-    [System.Convert]::FromBase64String($PasswordBase64)
-)
+@"
+Passed value:
+$PasswordBase64
 
-$Password | Set-Content "C:\Temp\PasswordTest.txt"
+Decoded value:
+$(
+    try {
+        [System.Text.Encoding]::UTF8.GetString(
+            [System.Convert]::FromBase64String($PasswordBase64)
+        )
+    }
+    catch {
+        "DECODE FAILED: $($_.Exception.Message)"
+    }
+)
+"@ | Set-Content "C:\Temp\PasswordTest.txt"
+``
