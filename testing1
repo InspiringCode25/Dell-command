@@ -1,0 +1,14 @@
+param(
+    [string]$PasswordBase64
+)
+
+@"
+All arguments:
+$($args -join ', ')
+
+Parameter value:
+[$PasswordBase64]
+
+Length:
+$($PasswordBase64.Length)
+"@ | Set-Content "C:\Temp\PasswordTest.txt"
