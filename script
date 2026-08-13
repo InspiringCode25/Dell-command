@@ -1,8 +1,22 @@
+param(
+    [string]$PasswordBase64
+)
+
 # Ensure script runs with Administrator privileges (Elevated UAC Context)
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Error "UAC Elevation Required: This script must be executed as an Administrator."
     Read-Host "Press Enter to exit"
     Exit
+}
+
+try {
+    $BiosPass = [System.Text.Encoding]::UTF8.GetString(
+        [System.Convert]::FromBase64String($PasswordBase64.Trim())
+    )
+}
+catch {
+    Write-Error "Failed to decode BIOS password."
+    Exit 1
 }
 
 # Wrap everything in a diagnostic engine to trap any unhandled runtime crashes
@@ -11,33 +25,32 @@ try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
 
     # --- CONFIGURATION VARIABLES ---
-    $TempDir   = "C:\Temp\Deployment"
-    $BiosPass  = "Twixfingers11"
+    $TempDir = "C:\Temp\Deployment"
 
-    # 1. Correct Microsoft .NET 10.0.11 Direct Binary Download Link
+    # Microsoft .NET Runtime
     $DotNetUrl = "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.11/windowsdesktop-runtime-10.0.11-win-x64.exe"
     $DotNetExe = "$TempDir\windowsdesktop-runtime-10-win-x64.exe"
 
-    # 2. Correct Dell Command | Update 5.7.1 Direct Binary Download Link
-    $DellUrl   = "https://dl.dell.com/FOLDER14847331M/2/Dell-Command-Update-Windows-Universal-Application_P0P70_WIN64_5.7.1_A00.EXE"
-    $DellExe   = "$TempDir\Dell-Command-Update.exe"
+    # Dell Command Update
+    $DellUrl = "https://dl.dell.com/FOLDER14847331M/2/Dell-Command-Update-Windows-Universal-Application_P0P70_WIN64_5.7.1_A00.EXE"
+    $DellExe = "$TempDir\Dell-Command-Update.exe"
 
     # Create workspace
-    if (-not (Test-Path $TempDir)) { New-Item -ItemType Directory -Path $TempDir -Force | Out-Null }
+    if (-not (Test-Path $TempDir)) {
+        New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
+    }
 
-    # Define the Browser Identity Header
+    # Browser Identity Header
     $UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-
 
     # --- PHASE 1: DOWNLOAD ENGINE ---
     Write-Host "[1/4] Downloading Microsoft .NET 10..." -ForegroundColor Cyan
     Invoke-WebRequest -Uri $DotNetUrl -OutFile $DotNetExe -UserAgent $UserAgent -UseBasicParsing -ErrorAction Stop
     Write-Host " >> .NET 10 download completed successfully." -ForegroundColor Green
 
-    Write-Host "`n[2/4] Downloading Dell Command | Update 5.7.1..." -ForegroundColor Cyan
+    Write-Host "`[Net.Securitys.dotnet.microsoft.compdate 5.7.1..." -ForegroundColor Cyan
     Invoke-WebRequest -Uri $DellUrl -OutFile $DellExe -UserAgent $UserAgent -UseBasicParsing -ErrorAction Stop
     Write-Host " >> Dell Command Update download completed successfully." -ForegroundColor Green
-
 
     # --- PHASE 2: SILENT INSTALLATION LAYER ---
     Write-Host "`n[3/4] Launching background installations..." -ForegroundColor Cyan
@@ -50,24 +63,23 @@ try {
     $p2 = Start-Process -FilePath $DellExe -ArgumentList "/s" -Wait -PassThru
     Write-Host "    -> Process exited with code: $($p2.ExitCode)" -ForegroundColor Green
 
-
     # --- PHASE 3: CUSTOM SYSTEM CONFIGURATION & XML SUPPRESSION ---
     $DcuCliPath = "C:\Program Files\Dell\CommandUpdate\dcu-cli.exe"
     $PolicyDir  = "C:\Program Files\Dell\CommandUpdate"
     $PolicyFile = "$PolicyDir\Policy.xml"
 
     if (Test-Path $DcuCliPath) {
+
         Write-Host "[CONFIG 1/2] Writing system hardware configuration changes..." -ForegroundColor Cyan
-        
-        # Modern DCU versions strictly require single concurrent target chains for stable parsing
-        # -scheduleWeekly=Wed,23:15 is the official compressed syntax to ensure it does not revert to Manual
+
         $ConfigArgs = '/configure -scheduleWeekly=Wed,23:15 -scheduleAction=DownloadInstallAndNotify -forceRestart=enable -updatesNotification=disable -autoSuspendBitLocker=enable -biosPassword="' + $BiosPass + '"'
+
         Start-Process -FilePath $DcuCliPath -ArgumentList $ConfigArgs -Wait
+
         Write-Host " >> Hardware configurations successfully committed." -ForegroundColor Green
 
-
         Write-Host "`n[CONFIG 2/2] Generating Global Policy Override File..." -ForegroundColor Cyan
-        # Writing a raw Policy.xml hard-locks the GUI out of 'Manual' mode and suppresses the first-launch wizard
+
         $XmlContent = @"
 <?xml version="1.0" encoding="utf-8"?>
 <CustomConfigurations>
@@ -82,27 +94,25 @@ try {
   <Setting Name="LockSettings" Value="enable" />
 </CustomConfigurations>
 "@
-        # Save directly to the application core root directory
-        [System.IO.File]::WriteAllText($PolicyFile, $XmlContent)
-        Write-Host " >> Policy.xml file successfully deployed into core installation layer." -ForegroundColor Green
 
+        [System.IO.File]::WriteAllText($PolicyFile, $XmlContent)
+
+        Write-Host " >> Policy.xml file successfully deployed into core installation layer." -ForegroundColor Green
 
         # --- VERIFICATION TEST ENGINE ---
         Write-Host "`n[VERIFICATION] Programmatically validating BIOS password binding status..." -ForegroundColor Magenta
-        
-        # Testing if your local hardware acknowledges the encrypted string profile 
-        # (This avoids relying on the GUI's masked view)
+
         $TestOutput = Start-Process -FilePath $DcuCliPath -ArgumentList "/scan" -Wait -PassThru -NoNewWindow
-        
+
         Write-Host "`n=======================================================" -ForegroundColor Green
         Write-Host " DEPLOYMENT PROTOCOL FULLY LOCKED" -ForegroundColor Green
         Write-Host " All startup menus and user choices are blocked." -ForegroundColor White
         Write-Host " Action: You may now issue a Deep Freeze REBOOT FROZEN." -ForegroundColor Yellow
         Write-Host "=======================================================" -ForegroundColor Green
-    } else {
+    }
+    else {
         Write-Error "Application Error: Dell Command Update path not found."
     }
-
 
     # --- PHASE 4: SECURE CLEANUP ---
     Write-Host "`n[CLEANUP] Removing downloaded installation packages..." -ForegroundColor Gray
@@ -112,8 +122,8 @@ try {
     Write-Host " DEPLOYMENT SCRIPT COMPLETED SUCCESSFULLY" -ForegroundColor Green
     Write-Host " Workstation settings are locked into the Thawed state." -ForegroundColor White
     Write-Host "=======================================================" -ForegroundColor Green
-
-} catch {
+}
+catch {
     Write-Host "`n[CRITICAL SCRIPT ERROR FLAG] Execution interrupted!" -ForegroundColor Red
     Write-Host $_.Exception.Message -ForegroundColor Red
 }
@@ -121,3 +131,4 @@ try {
 # --- PERSISTENCE HOLD ---
 Write-Host "`n-------------------------------------------------------" -ForegroundColor Gray
 Read-Host "Execution paused. Press ENTER to close this window"
+`
