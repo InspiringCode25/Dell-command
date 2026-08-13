@@ -1,21 +1,7 @@
-param(
-    [string]$PasswordBase64
-)
-
 @"
-Passed value:
-$PasswordBase64
+Args count: $($args.Count)
 
-Decoded value:
-$(
-    try {
-        [System.Text.Encoding]::UTF8.GetString(
-            [System.Convert]::FromBase64String($PasswordBase64)
-        )
-    }
-    catch {
-        "DECODE FAILED: $($_.Exception.Message)"
-    }
-)
+Arg0: [$($args[0])]
+Arg1: [$($args[1])]
+Arg2: [$($args[2])]
 "@ | Set-Content "C:\Temp\PasswordTest.txt"
-``
