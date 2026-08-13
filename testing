@@ -1,17 +1,9 @@
 param(
-    [string]$Password
+    [string]$PasswordBase64
 )
 
-$OutputFile = "C:\Temp\PasswordTest.txt"
+$Password = [System.Text.Encoding]::UTF8.GetString(
+    [System.Convert]::FromBase64String($PasswordBase64)
+)
 
-if (!(Test-Path "C:\Temp")) {
-    New-Item -ItemType Directory -Path "C:\Temp" -Force
-}
-
-@"
-Password received:
-$Password
-
-Timestamp:
-$(Get-Date)
-"@ | Set-Content $OutputFile
+$Password | Set-Content "C:\Temp\PasswordTest.txt"
