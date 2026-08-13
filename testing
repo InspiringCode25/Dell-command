@@ -1,0 +1,17 @@
+param(
+    [string]$Password
+)
+
+$OutputFile = "C:\Temp\PasswordTest.txt"
+
+if (!(Test-Path "C:\Temp")) {
+    New-Item -ItemType Directory -Path "C:\Temp" -Force
+}
+
+@"
+Password received:
+$Password
+
+Timestamp:
+$(Get-Date)
+"@ | Set-Content $OutputFile
