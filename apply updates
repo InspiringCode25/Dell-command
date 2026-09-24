@@ -1,1 +1,1 @@
-"C:\Program Files\Dell\CommandUpdate\dcu-cli.exe" /applyUpdates -silent
+Test-Path "C:\Program Files (x86)\Dell\CommandUpdate\dcu-cli.exe"
