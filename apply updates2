@@ -1,1 +1,5 @@
 & "C:\Program Files\Dell\CommandUpdate\dcu-cli.exe" /applyUpdates -silent -reboot=enable
+
+Start-Sleep -Seconds 120
+
+Restart-Computer -Force
