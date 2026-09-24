@@ -1,1 +1,10 @@
-dcu-cli.exe /applyUpdates -silent
+$dcu = Get-ChildItem "C:\Program Files*" -Recurse -Filter dcu-cli.exe -ErrorAction SilentlyContinue |
+       Select-Object -First 1 -ExpandProperty FullName
+
+if ($dcu) {
+    & $dcu /applyUpdates -silent -reboot=enable
+}
+else {
+    Write-Error "Dell Command Update CLI not found."
+}
+`
